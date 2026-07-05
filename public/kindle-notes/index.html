@@ -1,0 +1,952 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+<meta name="theme-color" content="#1c1b22" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Kindle行間メモ" />
+<link rel="manifest" href="./manifest.webmanifest" />
+<link rel="icon" type="image/svg+xml" href="./icon.svg" />
+<title>Kindle 行間メモ</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: #1c1b22; color: #e8e6f0;
+    position: fixed; inset: 0; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+  }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  /* ---------- ライブラリ画面 ---------- */
+  #library { position: absolute; inset: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: env(safe-area-inset-top) 16px calc(24px + env(safe-area-inset-bottom)); display: block; }
+  #library header { padding: 20px 4px 4px; }
+  #library h1 { font-size: 22px; font-weight: 700; }
+  #library .sub { font-size: 13px; color: #9a97ab; margin-top: 4px; line-height: 1.6; }
+  .banner {
+    margin: 14px 0 0; padding: 12px 14px; border-radius: 12px; font-size: 13px; line-height: 1.6;
+    background: #2c2a36; border: 1px solid #413e52;
+  }
+  .banner strong { color: #ffd479; }
+  .toolbar-row { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 12px 18px; border-radius: 12px; font-size: 15px; font-weight: 600;
+    background: #3d3a4f; transition: background .15s;
+  }
+  .btn:active { background: #4c4863; }
+  .btn.primary { background: #6d5ef2; }
+  .btn.primary:active { background: #5b4ed0; }
+  .btn.small { padding: 8px 12px; font-size: 13px; font-weight: 500; background: #2c2a36; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 8px; }
+  .card { background: #26242f; border-radius: 14px; overflow: hidden; border: 1px solid #34313f; }
+  .card .thumb { width: 100%; aspect-ratio: 3/4; object-fit: cover; object-position: top; display: block; background: #fff; cursor: pointer; }
+  .card .meta { padding: 8px 10px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+  .card .name { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .card .del { color: #8b8899; font-size: 16px; padding: 4px 6px; flex: none; }
+  #empty { text-align: center; color: #9a97ab; padding: 48px 20px; font-size: 14px; line-height: 2; }
+  #storage-info { margin-top: 24px; font-size: 12px; color: #767388; line-height: 1.8; }
+  details.help { margin-top: 20px; font-size: 13px; color: #b6b3c6; }
+  details.help summary { cursor: pointer; font-weight: 600; padding: 6px 0; color: #d8d5e6; }
+  details.help ol { margin: 8px 0 8px 22px; line-height: 2; }
+
+  /* ---------- 編集画面 ---------- */
+  #editor { position: absolute; inset: 0; display: none; flex-direction: column; background: #141318; }
+  body.editing #editor { display: flex; }
+  body.editing #library { display: none; }
+  #topbar {
+    flex: none; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+    padding: calc(6px + env(safe-area-inset-top)) 10px 6px; background: #1c1b22; border-bottom: 1px solid #34313f;
+    z-index: 10;
+  }
+  #topbar .tb {
+    min-width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 18px; padding: 0 8px; color: #cbc8da;
+  }
+  #topbar .tb.active { background: #6d5ef2; color: #fff; }
+  #topbar .tb:disabled { opacity: .3; }
+  #topbar .sep { width: 1px; height: 24px; background: #3d3a4f; margin: 0 4px; }
+  #topbar .spacer { flex: 1; }
+  #page-title { font-size: 13px; color: #9a97ab; max-width: 26vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #55515f; flex: none; }
+  .swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #6d5ef2; }
+  .wbtn { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 40px; border-radius: 10px; }
+  .wbtn .dot { border-radius: 50%; background: #cbc8da; }
+  .wbtn.active { background: #3d3a4f; }
+  .wbtn.active .dot { background: #fff; }
+  #canvas-wrap { flex: 1; position: relative; overflow: hidden; touch-action: none; background: #141318; }
+  #stage { position: absolute; left: 0; top: 0; transform-origin: 0 0; box-shadow: 0 4px 30px rgba(0,0,0,.5); }
+  #stage canvas { position: absolute; left: 0; top: 0; display: block; }
+  #base-canvas { position: relative !important; background: #fff; }
+  #save-badge {
+    position: absolute; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom)); z-index: 5;
+    font-size: 12px; color: #9a97ab; background: rgba(28,27,34,.85); padding: 6px 12px; border-radius: 999px;
+    opacity: 0; transition: opacity .3s; pointer-events: none;
+  }
+  #save-badge.show { opacity: 1; }
+  #toast {
+    position: fixed; left: 50%; bottom: calc(30px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: #3d3a4f; color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14px;
+    opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 100; max-width: 86vw; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- ============ ライブラリ(ページ一覧)============ -->
+<div id="library">
+  <header>
+    <h1>📖 Kindle 行間メモ</h1>
+    <p class="sub">Kindle ページのスクリーンショットを取り込み、Apple Pencil で行間に書き込めます。書き込みは 1 画ごとに自動保存され、自分で消さない限り消えません。</p>
+  </header>
+
+  <div class="banner" id="pwa-hint" hidden>
+    💡 <strong>共有 → 「ホーム画面に追加」</strong>してから使うのがおすすめです。ホーム画面のアプリとして開くと、Safari の自動データ削除(長期間未使用時)の対象外になり、書き込みがより確実に残ります。
+  </div>
+
+  <div class="toolbar-row">
+    <button class="btn primary" id="import-btn">＋ スクリーンショットを取り込む</button>
+    <button class="btn small" id="backup-btn">⬇︎ バックアップ書き出し</button>
+    <button class="btn small" id="restore-btn">⬆︎ バックアップ読み込み</button>
+  </div>
+  <input type="file" id="file-input" accept="image/*" multiple hidden />
+  <input type="file" id="restore-input" accept="application/json,.json" hidden />
+
+  <div id="grid"></div>
+  <div id="empty" hidden>
+    まだページがありません。<br>
+    Kindle アプリでページを開き、Apple Pencil で画面左下から内側へスワイプしてスクリーンショットを撮り、<br>
+    「＋ スクリーンショットを取り込む」から追加してください。
+  </div>
+
+  <details class="help">
+    <summary>使い方</summary>
+    <ol>
+      <li>Kindle アプリで書き込みたいページを開く</li>
+      <li>Apple Pencil で画面の<strong>左下の角から内側へスワイプ</strong>(またはトップボタン＋音量上)してスクリーンショットを撮影し、写真に保存</li>
+      <li>このアプリで「＋ スクリーンショットを取り込む」から写真を選択(複数選択可)</li>
+      <li>ページを開き、ピンチで拡大して行間に Apple Pencil で書き込む(指ではページの移動・拡大縮小)</li>
+      <li>書き込みは 1 画ごとに端末内へ自動保存。アプリを閉じても消えません</li>
+    </ol>
+    <p>※ iPadOS の仕様上、Kindle アプリの画面そのものに直接書き込むことはできないため、スクリーンショット方式を採用しています。端末の初期化や Safari のデータ削除に備え、ときどき「バックアップ書き出し」でファイルに保存しておくと安心です。</p>
+  </details>
+
+  <p id="storage-info"></p>
+</div>
+
+<!-- ============ 編集(手書き)画面 ============ -->
+<div id="editor">
+  <div id="topbar">
+    <button class="tb" id="back-btn" title="一覧へ戻る">‹</button>
+    <button class="tb" id="prev-btn" title="前のページ">⏮</button>
+    <button class="tb" id="next-btn" title="次のページ">⏭</button>
+    <span id="page-title"></span>
+    <span class="sep"></span>
+    <button class="tb tool" data-tool="pen" title="ペン">✒️</button>
+    <button class="tb tool" data-tool="highlight" title="マーカー">🖍</button>
+    <button class="tb tool" data-tool="eraser" title="消しゴム(画単位)">◻️</button>
+    <span class="sep"></span>
+    <span id="swatches"></span>
+    <span class="sep"></span>
+    <span id="widths"></span>
+    <span class="sep"></span>
+    <button class="tb" id="undo-btn" title="元に戻す">↩︎</button>
+    <button class="tb" id="redo-btn" title="やり直す">↪︎</button>
+    <span class="spacer"></span>
+    <button class="tb" id="finger-btn" title="指でも描く">☝️</button>
+    <button class="tb" id="fit-btn" title="全体表示">⤢</button>
+    <button class="tb" id="export-btn" title="PNGとして書き出し">📤</button>
+  </div>
+  <div id="canvas-wrap">
+    <div id="stage">
+      <canvas id="base-canvas"></canvas>
+      <canvas id="ink-canvas"></canvas>
+      <canvas id="live-canvas"></canvas>
+    </div>
+    <div id="save-badge">✓ 保存しました</div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* ==================== IndexedDB ==================== */
+const DB_NAME = 'kindle-margin-notes';
+const DB_VERSION = 1;
+let dbPromise = null;
+
+function openDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains('pages')) {
+        const pages = db.createObjectStore('pages', { keyPath: 'id' });
+        pages.createIndex('createdAt', 'createdAt');
+      }
+      if (!db.objectStoreNames.contains('strokes')) {
+        const strokes = db.createObjectStore('strokes', { keyPath: 'id' });
+        strokes.createIndex('pageId', 'pageId');
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return dbPromise;
+}
+
+function tx(storeName, mode, fn) {
+  return openDB().then(db => new Promise((resolve, reject) => {
+    const t = db.transaction(storeName, mode);
+    const store = t.objectStore(storeName);
+    const out = fn(store);
+    t.oncomplete = () => resolve(out && out.result !== undefined ? out.result : undefined);
+    t.onerror = () => reject(t.error);
+    t.onabort = () => reject(t.error);
+  }));
+}
+
+const idb = {
+  putPage: (page) => tx('pages', 'readwrite', s => s.put(page)),
+  getPage: (id) => tx('pages', 'readonly', s => s.get(id)),
+  allPages: () => tx('pages', 'readonly', s => s.getAll()),
+  deletePage: (id) => tx('pages', 'readwrite', s => s.delete(id)),
+  putStroke: (stroke) => tx('strokes', 'readwrite', s => s.put(stroke)),
+  deleteStroke: (id) => tx('strokes', 'readwrite', s => s.delete(id)),
+  strokesOf: (pageId) => openDB().then(db => new Promise((resolve, reject) => {
+    const t = db.transaction('strokes', 'readonly');
+    const req = t.objectStore('strokes').index('pageId').getAll(pageId);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  })),
+  deleteStrokesOf: (pageId) => openDB().then(db => new Promise((resolve, reject) => {
+    const t = db.transaction('strokes', 'readwrite');
+    const idx = t.objectStore('strokes').index('pageId');
+    const req = idx.openKeyCursor(IDBKeyRange.only(pageId));
+    req.onsuccess = () => {
+      const cur = req.result;
+      if (cur) { t.objectStore('strokes').delete(cur.primaryKey); cur.continue(); }
+    };
+    t.oncomplete = () => resolve();
+    t.onerror = () => reject(t.error);
+  })),
+};
+
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2));
+
+/* ==================== 共通 UI ==================== */
+const $ = (sel) => document.querySelector(sel);
+let toastTimer = null;
+function toast(msg) {
+  const el = $('#toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+/* 「勝手に消えない」ための永続ストレージ要求 */
+let persistRequested = false;
+async function requestPersistence() {
+  if (persistRequested) return;
+  persistRequested = true;
+  try {
+    if (navigator.storage && navigator.storage.persist) {
+      await navigator.storage.persist();
+    }
+  } catch (_) { /* 非対応環境は無視 */ }
+  updateStorageInfo();
+}
+
+async function updateStorageInfo() {
+  const el = $('#storage-info');
+  const parts = [];
+  try {
+    if (navigator.storage && navigator.storage.persisted) {
+      const p = await navigator.storage.persisted();
+      parts.push(p ? '🔒 永続ストレージ: 有効(ブラウザが勝手にデータを削除しません)'
+                   : '⚠️ 永続ストレージ: 未許可(バックアップ書き出しの併用をおすすめします)');
+    }
+    if (navigator.storage && navigator.storage.estimate) {
+      const est = await navigator.storage.estimate();
+      if (est.usage != null) {
+        parts.push(`使用容量: ${(est.usage / 1024 / 1024).toFixed(1)} MB`);
+      }
+    }
+  } catch (_) {}
+  el.textContent = parts.join(' ／ ');
+}
+
+/* ==================== ライブラリ画面 ==================== */
+const grid = $('#grid');
+let thumbUrls = [];
+
+async function renderLibrary() {
+  const pages = (await idb.allPages()).sort((a, b) => a.createdAt - b.createdAt);
+  thumbUrls.forEach(URL.revokeObjectURL);
+  thumbUrls = [];
+  grid.innerHTML = '';
+  $('#empty').hidden = pages.length > 0;
+  for (const page of pages) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    const url = URL.createObjectURL(page.imageBlob);
+    thumbUrls.push(url);
+    const img = document.createElement('img');
+    img.className = 'thumb';
+    img.src = url;
+    img.alt = page.name;
+    img.addEventListener('click', () => openEditor(page.id));
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    const name = document.createElement('span');
+    name.className = 'name';
+    name.textContent = page.name;
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '🗑';
+    del.title = 'このページを削除';
+    del.addEventListener('click', async () => {
+      if (!confirm(`「${page.name}」と書き込みを完全に削除します。よろしいですか?\n(この操作でしか書き込みは消えません)`)) return;
+      await idb.deleteStrokesOf(page.id);
+      await idb.deletePage(page.id);
+      renderLibrary();
+      updateStorageInfo();
+    });
+    meta.append(name, del);
+    card.append(img, meta);
+    grid.appendChild(card);
+  }
+  updateStorageInfo();
+}
+
+async function importFiles(files) {
+  await requestPersistence();
+  let count = 0;
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue;
+    const dims = await imageSize(file);
+    if (!dims) { toast(`${file.name} を読み込めませんでした`); continue; }
+    await idb.putPage({
+      id: uid(),
+      name: defaultPageName(file, count),
+      createdAt: Date.now() + count, // 複数取り込み時の順序維持
+      imageBlob: file,
+      width: dims.width,
+      height: dims.height,
+    });
+    count++;
+  }
+  if (count > 0) {
+    toast(`${count} ページを取り込みました`);
+    renderLibrary();
+  }
+}
+
+function defaultPageName(file, offset) {
+  const base = (file.name || '').replace(/\.[^.]+$/, '');
+  if (base && !/^(img|image|screenshot|スクリーンショット)?[\s_\-\d.]*$/i.test(base)) return base;
+  const d = new Date(Date.now() + offset);
+  return `ページ ${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function imageSize(blob) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => { resolve({ width: img.naturalWidth, height: img.naturalHeight }); URL.revokeObjectURL(url); };
+    img.onerror = () => { resolve(null); URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+}
+
+$('#import-btn').addEventListener('click', () => $('#file-input').click());
+$('#file-input').addEventListener('change', (e) => {
+  importFiles([...e.target.files]);
+  e.target.value = '';
+});
+
+/* クリップボード貼り付け・ドラッグ&ドロップでも取り込み可能 */
+window.addEventListener('paste', (e) => {
+  if (document.body.classList.contains('editing')) return;
+  const files = [...(e.clipboardData?.files || [])];
+  if (files.length) importFiles(files);
+});
+window.addEventListener('dragover', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (document.body.classList.contains('editing')) return;
+  const files = [...(e.dataTransfer?.files || [])];
+  if (files.length) importFiles(files);
+});
+
+/* ---------- バックアップ ---------- */
+$('#backup-btn').addEventListener('click', async () => {
+  const pages = (await idb.allPages()).sort((a, b) => a.createdAt - b.createdAt);
+  if (!pages.length) { toast('バックアップするページがありません'); return; }
+  toast('バックアップを作成中…');
+  const out = { app: 'kindle-margin-notes', version: 1, exportedAt: new Date().toISOString(), pages: [] };
+  for (const page of pages) {
+    const strokes = await idb.strokesOf(page.id);
+    out.pages.push({
+      id: page.id, name: page.name, createdAt: page.createdAt,
+      width: page.width, height: page.height,
+      imageDataUrl: await blobToDataUrl(page.imageBlob),
+      strokes: strokes.sort((a, b) => a.seq - b.seq),
+    });
+  }
+  const blob = new Blob([JSON.stringify(out)], { type: 'application/json' });
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadBlob(blob, `kindle-margin-notes-${stamp}.json`);
+  toast('バックアップを書き出しました');
+});
+
+$('#restore-btn').addEventListener('click', () => $('#restore-input').click());
+$('#restore-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const data = JSON.parse(await file.text());
+    if (data.app !== 'kindle-margin-notes' || !Array.isArray(data.pages)) throw new Error('形式が違います');
+    await requestPersistence();
+    for (const p of data.pages) {
+      const blob = await (await fetch(p.imageDataUrl)).blob();
+      await idb.putPage({ id: p.id, name: p.name, createdAt: p.createdAt, imageBlob: blob, width: p.width, height: p.height });
+      for (const s of (p.strokes || [])) await idb.putStroke(s);
+    }
+    toast(`${data.pages.length} ページを復元しました`);
+    renderLibrary();
+  } catch (err) {
+    toast('バックアップファイルを読み込めませんでした');
+    console.error(err);
+  }
+});
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+/* ==================== 編集画面 ==================== */
+const COLORS = ['#e0342b', '#1857d6', '#0f9146', '#1c1b22', '#f2a30f'];
+const PEN_WIDTHS = [2, 3.5, 6];       // 画像ピクセル基準
+const HIGHLIGHT_WIDTH_FACTOR = 7;     // マーカーはペン幅の倍率
+
+const editor = {
+  page: null,          // 現在のページ meta
+  pageList: [],        // 前後移動用(id の配列、createdAt 順)
+  strokes: [],         // 描画済みストローク
+  undoStack: [],
+  redoStack: [],
+  seq: 1,
+  tool: 'pen',
+  color: COLORS[0],
+  widthIndex: 1,
+  fingerDraw: false,
+  // 表示変換
+  scale: 1, tx: 0, ty: 0,
+  // 進行中のストローク
+  active: null,        // { stroke, pointerId }
+  // ジェスチャー
+  gesturePointers: new Map(),
+  gestureStart: null,
+};
+
+const baseCanvas = $('#base-canvas');
+const inkCanvas = $('#ink-canvas');
+const liveCanvas = $('#live-canvas');
+const stage = $('#stage');
+const wrap = $('#canvas-wrap');
+
+/* ---------- ツールバー構築 ---------- */
+const swatchesEl = $('#swatches');
+COLORS.forEach((c) => {
+  const b = document.createElement('button');
+  b.className = 'swatch';
+  b.style.background = c;
+  b.dataset.color = c;
+  b.addEventListener('click', () => { editor.color = c; syncToolbar(); });
+  swatchesEl.appendChild(b);
+});
+const widthsEl = $('#widths');
+PEN_WIDTHS.forEach((w, i) => {
+  const b = document.createElement('button');
+  b.className = 'wbtn';
+  b.dataset.index = i;
+  const dot = document.createElement('span');
+  dot.className = 'dot';
+  const px = 6 + i * 5;
+  dot.style.width = px + 'px';
+  dot.style.height = px + 'px';
+  b.appendChild(dot);
+  b.addEventListener('click', () => { editor.widthIndex = i; syncToolbar(); });
+  widthsEl.appendChild(b);
+});
+document.querySelectorAll('#topbar .tool').forEach((b) => {
+  b.addEventListener('click', () => { editor.tool = b.dataset.tool; syncToolbar(); });
+});
+
+function syncToolbar() {
+  document.querySelectorAll('#topbar .tool').forEach((b) => b.classList.toggle('active', b.dataset.tool === editor.tool));
+  document.querySelectorAll('.swatch').forEach((b) => b.classList.toggle('active', b.dataset.color === editor.color));
+  document.querySelectorAll('.wbtn').forEach((b) => b.classList.toggle('active', Number(b.dataset.index) === editor.widthIndex));
+  $('#undo-btn').disabled = editor.undoStack.length === 0;
+  $('#redo-btn').disabled = editor.redoStack.length === 0;
+  $('#finger-btn').classList.toggle('active', editor.fingerDraw);
+  const i = editor.pageList.indexOf(editor.page?.id);
+  $('#prev-btn').disabled = i <= 0;
+  $('#next-btn').disabled = i < 0 || i >= editor.pageList.length - 1;
+}
+
+/* ---------- ページを開く ---------- */
+async function openEditor(pageId) {
+  const page = await idb.getPage(pageId);
+  if (!page) return;
+  editor.page = page;
+  editor.pageList = (await idb.allPages()).sort((a, b) => a.createdAt - b.createdAt).map(p => p.id);
+  editor.undoStack = [];
+  editor.redoStack = [];
+  editor.active = null;
+  editor.gesturePointers.clear();
+
+  const strokes = await idb.strokesOf(pageId);
+  strokes.sort((a, b) => a.seq - b.seq);
+  editor.strokes = strokes;
+  editor.seq = strokes.reduce((m, s) => Math.max(m, s.seq), 0) + 1;
+
+  for (const c of [baseCanvas, inkCanvas, liveCanvas]) {
+    c.width = page.width;
+    c.height = page.height;
+    c.style.width = page.width + 'px';
+    c.style.height = page.height + 'px';
+  }
+  stage.style.width = page.width + 'px';
+  stage.style.height = page.height + 'px';
+
+  const url = URL.createObjectURL(page.imageBlob);
+  await new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const ctx = baseCanvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, baseCanvas.width, baseCanvas.height);
+      ctx.drawImage(img, 0, 0);
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+    img.onerror = resolve;
+    img.src = url;
+  });
+
+  redrawInk();
+  $('#page-title').textContent = page.name;
+  document.body.classList.add('editing');
+  fitToScreen();
+  syncToolbar();
+  requestPersistence();
+}
+
+function closeEditor() {
+  document.body.classList.remove('editing');
+  editor.page = null;
+  renderLibrary();
+}
+
+$('#back-btn').addEventListener('click', closeEditor);
+$('#prev-btn').addEventListener('click', () => stepPage(-1));
+$('#next-btn').addEventListener('click', () => stepPage(1));
+function stepPage(dir) {
+  const i = editor.pageList.indexOf(editor.page.id);
+  const nextId = editor.pageList[i + dir];
+  if (nextId) openEditor(nextId);
+}
+$('#page-title').addEventListener('click', async () => {
+  const name = prompt('ページ名を変更', editor.page.name);
+  if (name && name.trim()) {
+    editor.page.name = name.trim();
+    await idb.putPage(editor.page);
+    $('#page-title').textContent = editor.page.name;
+  }
+});
+$('#finger-btn').addEventListener('click', () => {
+  editor.fingerDraw = !editor.fingerDraw;
+  toast(editor.fingerDraw ? '指でも描けます(移動は2本指)' : '指はページ移動・拡大縮小');
+  syncToolbar();
+});
+
+/* ---------- 表示変換(ズーム / パン)---------- */
+function applyTransform() {
+  stage.style.transform = `translate(${editor.tx}px, ${editor.ty}px) scale(${editor.scale})`;
+}
+function fitToScreen() {
+  const vw = wrap.clientWidth, vh = wrap.clientHeight;
+  const s = Math.min(vw / editor.page.width, vh / editor.page.height) * 0.98;
+  editor.scale = s;
+  editor.tx = (vw - editor.page.width * s) / 2;
+  editor.ty = (vh - editor.page.height * s) / 2;
+  applyTransform();
+}
+$('#fit-btn').addEventListener('click', fitToScreen);
+window.addEventListener('resize', () => { if (editor.page) fitToScreen(); });
+
+function zoomAt(cx, cy, factor) {
+  const newScale = Math.min(12, Math.max(0.15, editor.scale * factor));
+  const k = newScale / editor.scale;
+  const rect = wrap.getBoundingClientRect();
+  const px = cx - rect.left, py = cy - rect.top;
+  editor.tx = px - (px - editor.tx) * k;
+  editor.ty = py - (py - editor.ty) * k;
+  editor.scale = newScale;
+  applyTransform();
+}
+wrap.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) {
+    zoomAt(e.clientX, e.clientY, Math.exp(-e.deltaY / 200));
+  } else {
+    editor.tx -= e.deltaX;
+    editor.ty -= e.deltaY;
+    applyTransform();
+  }
+}, { passive: false });
+
+/* ---------- 座標変換 ---------- */
+function toImageXY(e) {
+  const rect = inkCanvas.getBoundingClientRect();
+  return {
+    x: (e.clientX - rect.left) / rect.width * inkCanvas.width,
+    y: (e.clientY - rect.top) / rect.height * inkCanvas.height,
+    p: (e.pointerType === 'pen' && e.pressure > 0) ? e.pressure : 0.5,
+  };
+}
+
+/* ---------- 描画 ---------- */
+function penWidthAt(stroke, pressure) {
+  if (stroke.tool === 'highlight') return stroke.width * HIGHLIGHT_WIDTH_FACTOR;
+  return stroke.width * (0.5 + pressure * 1.2);
+}
+
+function drawStroke(ctx, s) {
+  const pts = s.points;
+  if (!pts.length) return;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = s.color;
+  ctx.fillStyle = s.color;
+  if (s.tool === 'highlight') {
+    ctx.globalAlpha = 0.35;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.lineWidth = penWidthAt(s, 0.5);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+    if (pts.length === 1) ctx.lineTo(pts[0].x + 0.01, pts[0].y);
+    ctx.stroke();
+  } else {
+    if (pts.length === 1) {
+      ctx.beginPath();
+      ctx.arc(pts[0].x, pts[0].y, penWidthAt(s, pts[0].p) / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      for (let i = 1; i < pts.length; i++) {
+        ctx.beginPath();
+        ctx.lineWidth = (penWidthAt(s, pts[i - 1].p) + penWidthAt(s, pts[i].p)) / 2;
+        ctx.moveTo(pts[i - 1].x, pts[i - 1].y);
+        // 中点補間でなめらかに
+        if (i < pts.length - 1) {
+          const mx = (pts[i].x + pts[i + 1].x) / 2, my = (pts[i].y + pts[i + 1].y) / 2;
+          ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+        } else {
+          ctx.lineTo(pts[i].x, pts[i].y);
+        }
+        ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
+
+function redrawInk() {
+  const ctx = inkCanvas.getContext('2d');
+  ctx.clearRect(0, 0, inkCanvas.width, inkCanvas.height);
+  for (const s of editor.strokes) drawStroke(ctx, s);
+}
+
+let saveBadgeTimer = null;
+function flashSaved() {
+  const b = $('#save-badge');
+  b.classList.add('show');
+  clearTimeout(saveBadgeTimer);
+  saveBadgeTimer = setTimeout(() => b.classList.remove('show'), 1200);
+}
+
+/* ---------- ポインタ入力 ---------- */
+function canDrawWith(e) {
+  if (editor.tool === 'eraser') return e.pointerType === 'pen' || e.pointerType === 'mouse' || editor.fingerDraw;
+  if (e.pointerType === 'pen' || e.pointerType === 'mouse') return true;
+  return editor.fingerDraw && editor.gesturePointers.size === 0;
+}
+
+wrap.addEventListener('pointerdown', (e) => {
+  if (!editor.page) return;
+  if (e.pointerType === 'touch') {
+    if (editor.active) return; // 書いている最中の手のひら等は無視(パームリジェクション)
+    if (!editor.fingerDraw || editor.gesturePointers.size >= 1) {
+      // 指はパン / ピンチ
+      startGesturePointer(e);
+      return;
+    }
+  }
+  if (!canDrawWith(e)) return;
+  e.preventDefault();
+  // ペンを置いたら進行中のジェスチャーは終了
+  editor.gesturePointers.clear();
+  editor.gestureStart = null;
+
+  if (editor.tool === 'eraser') {
+    editor.active = { pointerId: e.pointerId, eraser: true, erased: [] };
+    eraseAt(toImageXY(e), editor.active.erased);
+    wrap.setPointerCapture(e.pointerId);
+    return;
+  }
+  const stroke = {
+    id: uid(),
+    pageId: editor.page.id,
+    seq: editor.seq++,
+    tool: editor.tool,
+    color: editor.color,
+    width: PEN_WIDTHS[editor.widthIndex],
+    points: [toImageXY(e)],
+  };
+  editor.active = { pointerId: e.pointerId, stroke };
+  wrap.setPointerCapture(e.pointerId);
+  drawLive();
+});
+
+wrap.addEventListener('pointermove', (e) => {
+  if (!editor.page) return;
+  if (editor.gesturePointers.has(e.pointerId)) {
+    moveGesturePointer(e);
+    return;
+  }
+  if (!editor.active || editor.active.pointerId !== e.pointerId) return;
+  e.preventDefault();
+  const events = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  if (editor.active.eraser) {
+    for (const ev of events) eraseAt(toImageXY(ev), editor.active.erased);
+    return;
+  }
+  for (const ev of events) editor.active.stroke.points.push(toImageXY(ev));
+  drawLive();
+});
+
+wrap.addEventListener('pointerup', finishPointer);
+/* pointercancel でも書きかけの画は破棄せず保存する(勝手に消えない) */
+wrap.addEventListener('pointercancel', finishPointer);
+
+async function finishPointer(e) {
+  if (editor.gesturePointers.has(e.pointerId)) {
+    editor.gesturePointers.delete(e.pointerId);
+    editor.gestureStart = null;
+    return;
+  }
+  if (!editor.active || editor.active.pointerId !== e.pointerId) return;
+  const active = editor.active;
+  editor.active = null;
+
+  if (active.eraser) {
+    if (active.erased.length) {
+      editor.undoStack.push({ type: 'erase', strokes: active.erased });
+      editor.redoStack = [];
+      syncToolbar();
+      flashSaved();
+    }
+    return;
+  }
+  const stroke = active.stroke;
+  clearLive();
+  editor.strokes.push(stroke);
+  drawStroke(inkCanvas.getContext('2d'), stroke);
+  editor.undoStack.push({ type: 'draw', stroke });
+  editor.redoStack = [];
+  syncToolbar();
+  try {
+    await idb.putStroke(stroke);   // 1画ごとに即時保存
+    flashSaved();
+  } catch (err) {
+    console.error(err);
+    toast('⚠️ 保存に失敗しました。空き容量を確認してください');
+  }
+}
+
+function drawLive() {
+  const ctx = liveCanvas.getContext('2d');
+  ctx.clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+  if (editor.active && editor.active.stroke) drawStroke(ctx, editor.active.stroke);
+}
+function clearLive() {
+  liveCanvas.getContext('2d').clearRect(0, 0, liveCanvas.width, liveCanvas.height);
+}
+
+/* ---------- 消しゴム(ストローク単位)---------- */
+function eraseAt(pt, erasedOut) {
+  const radius = 12; // 画像ピクセル
+  let hit = false;
+  for (let i = editor.strokes.length - 1; i >= 0; i--) {
+    const s = editor.strokes[i];
+    if (strokeHits(s, pt, radius)) {
+      editor.strokes.splice(i, 1);
+      erasedOut.push(s);
+      idb.deleteStroke(s.id).catch(console.error);
+      hit = true;
+    }
+  }
+  if (hit) redrawInk();
+}
+
+function strokeHits(s, pt, radius) {
+  const r = radius + penWidthAt(s, 0.7) / 2;
+  const pts = s.points;
+  if (pts.length === 1) return dist2(pts[0], pt) <= r * r;
+  for (let i = 1; i < pts.length; i++) {
+    if (segDist2(pts[i - 1], pts[i], pt) <= r * r) return true;
+  }
+  return false;
+}
+function dist2(a, b) { const dx = a.x - b.x, dy = a.y - b.y; return dx * dx + dy * dy; }
+function segDist2(a, b, p) {
+  const abx = b.x - a.x, aby = b.y - a.y;
+  const len2 = abx * abx + aby * aby;
+  let t = len2 ? ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return dist2({ x: a.x + abx * t, y: a.y + aby * t }, p);
+}
+
+/* ---------- 元に戻す / やり直す ---------- */
+$('#undo-btn').addEventListener('click', async () => {
+  const op = editor.undoStack.pop();
+  if (!op) return;
+  if (op.type === 'draw') {
+    editor.strokes = editor.strokes.filter(s => s.id !== op.stroke.id);
+    await idb.deleteStroke(op.stroke.id);
+  } else {
+    for (const s of op.strokes) { editor.strokes.push(s); await idb.putStroke(s); }
+    editor.strokes.sort((a, b) => a.seq - b.seq);
+  }
+  editor.redoStack.push(op);
+  redrawInk();
+  syncToolbar();
+});
+$('#redo-btn').addEventListener('click', async () => {
+  const op = editor.redoStack.pop();
+  if (!op) return;
+  if (op.type === 'draw') {
+    editor.strokes.push(op.stroke);
+    editor.strokes.sort((a, b) => a.seq - b.seq);
+    await idb.putStroke(op.stroke);
+  } else {
+    const ids = new Set(op.strokes.map(s => s.id));
+    editor.strokes = editor.strokes.filter(s => !ids.has(s.id));
+    for (const s of op.strokes) await idb.deleteStroke(s.id);
+  }
+  editor.undoStack.push(op);
+  redrawInk();
+  syncToolbar();
+});
+
+/* ---------- 指ジェスチャー(パン / ピンチ)---------- */
+function startGesturePointer(e) {
+  editor.gesturePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  editor.gestureStart = snapshotGesture();
+  wrap.setPointerCapture(e.pointerId);
+}
+function snapshotGesture() {
+  const pts = [...editor.gesturePointers.values()];
+  const cx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  const cy = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  let d = 1;
+  if (pts.length >= 2) d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+  return { cx, cy, d, scale: editor.scale, tx: editor.tx, ty: editor.ty };
+}
+function moveGesturePointer(e) {
+  const p = editor.gesturePointers.get(e.pointerId);
+  p.x = e.clientX; p.y = e.clientY;
+  const g0 = editor.gestureStart;
+  if (!g0) return;
+  const pts = [...editor.gesturePointers.values()];
+  const cx = pts.reduce((s, q) => s + q.x, 0) / pts.length;
+  const cy = pts.reduce((s, q) => s + q.y, 0) / pts.length;
+  let k = 1;
+  if (pts.length >= 2) {
+    const d = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1;
+    k = d / g0.d;
+  }
+  const newScale = Math.min(12, Math.max(0.15, g0.scale * k));
+  k = newScale / g0.scale;
+  const rect = wrap.getBoundingClientRect();
+  const px0 = g0.cx - rect.left, py0 = g0.cy - rect.top;
+  const px1 = cx - rect.left, py1 = cy - rect.top;
+  editor.scale = newScale;
+  editor.tx = px1 - (px0 - g0.tx) * k;
+  editor.ty = py1 - (py0 - g0.ty) * k;
+  applyTransform();
+}
+
+/* ---------- PNG 書き出し ---------- */
+$('#export-btn').addEventListener('click', async () => {
+  const c = document.createElement('canvas');
+  c.width = baseCanvas.width;
+  c.height = baseCanvas.height;
+  const ctx = c.getContext('2d');
+  ctx.drawImage(baseCanvas, 0, 0);
+  ctx.drawImage(inkCanvas, 0, 0);
+  const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+  const filename = `${editor.page.name}.png`;
+  const file = new File([blob], filename, { type: 'image/png' });
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file] }); return; } catch (_) { /* キャンセル時はフォールバックしない */ return; }
+  }
+  downloadBlob(blob, filename);
+});
+
+/* ==================== 初期化 ==================== */
+(function init() {
+  // ホーム画面アプリとして起動していない場合のみヒントを表示
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  $('#pwa-hint').hidden = standalone;
+
+  if ('serviceWorker' in navigator && location.protocol === 'https:') {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+  renderLibrary();
+})();
+
+/* テスト用フック(UI には影響しない) */
+window.__kindleNotes = { idb, importFiles, openEditor, closeEditor, editor, renderLibrary };
+</script>
+</body>
+</html>

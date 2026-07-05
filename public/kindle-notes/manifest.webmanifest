@@ -1,0 +1,14 @@
+{
+  "name": "Kindle 行間メモ",
+  "short_name": "行間メモ",
+  "description": "Kindleページのスクリーンショットに Apple Pencil で書き込むメモアプリ。書き込みは自動保存され消えません。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1c1b22",
+  "theme_color": "#1c1b22",
+  "icons": [
+    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
