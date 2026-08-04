@@ -100,6 +100,10 @@ export const usePatternPlayer = ({ archetype, bpm, root }: Pattern) => {
 
   const start = useCallback(() => {
     if (ctxRef.current === null) {
+      // iOS のマナースイッチで消音されないよう再生用セッションを指定する（対応ブラウザのみ）
+      const session = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
+      if (session) session.type = 'playback';
+
       const ctx = new AudioContext();
       const master = ctx.createGain();
       master.gain.value = 0.55;
