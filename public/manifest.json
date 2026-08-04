@@ -2,17 +2,18 @@
   "name": "カロリー管理",
   "short_name": "カロリー管理",
   "description": "毎日の食事カロリーを記録・管理するアプリ",
-  "start_url": "/",
+  "start_url": "/calorie-tracker/",
   "display": "standalone",
   "background_color": "#f9fafb",
   "theme_color": "#22c55e",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/favicon.svg",
+      "src": "/calorie-tracker/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "scope": "/calorie-tracker/"
 }

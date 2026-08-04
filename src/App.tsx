@@ -3,10 +3,14 @@ import { useMeals } from './hooks/useMeals';
 import { CalorieSummary } from './components/CalorieSummary';
 import { MealForm } from './components/MealForm';
 import { MealList } from './components/MealList';
+import { TechnoScreen } from './components/TechnoScreen';
 
 const DEFAULT_GOAL = 2000;
 
+type Tab = 'calorie' | 'techno';
+
 function App() {
+  const [tab, setTab] = useState<Tab>('calorie');
   const { meals, addMeal, deleteMeal, totalCalories } = useMeals();
   const [goal, setGoal] = useState(() => {
     const saved = localStorage.getItem('calorie-goal');
@@ -36,11 +40,13 @@ function App() {
       <header className="bg-white border-b border-gray-100 shadow-sm safe-top safe-x">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">🥗 カロリー管理</h1>
+            <h1 className="text-xl font-bold text-gray-800">
+              {tab === 'calorie' ? '🥗 カロリー管理' : '🎧 テクノ楽譜'}
+            </h1>
             <p className="text-xs text-gray-400 mt-0.5">{today}</p>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
-            {editingGoal ? (
+            {tab === 'techno' ? null : editingGoal ? (
               <div className="flex items-center gap-2">
                 <input
                   type="number"
@@ -69,12 +75,37 @@ function App() {
             )}
           </div>
         </div>
+        <div className="max-w-md mx-auto px-4 pb-3">
+          <div className="flex gap-1 bg-gray-100 rounded-xl p-1">
+            {([
+              ['calorie', '🥗 カロリー'],
+              ['techno', '🎧 テクノ'],
+            ] as const).map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={[
+                  'flex-1 text-sm py-2.5 rounded-lg transition-colors min-h-[44px]',
+                  tab === id ? 'bg-white text-gray-800 font-medium shadow-sm' : 'text-gray-500',
+                ].join(' ')}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
       </header>
 
       <main className="max-w-md mx-auto px-4 py-6 flex flex-col gap-4 safe-x safe-bottom">
-        <CalorieSummary total={totalCalories} goal={goal} />
-        <MealForm onAdd={addMeal} />
-        <MealList meals={meals} onDelete={deleteMeal} />
+        {tab === 'calorie' ? (
+          <>
+            <CalorieSummary total={totalCalories} goal={goal} />
+            <MealForm onAdd={addMeal} />
+            <MealList meals={meals} onDelete={deleteMeal} />
+          </>
+        ) : (
+          <TechnoScreen />
+        )}
       </main>
     </div>
   );
