@@ -1,0 +1,54 @@
+{
+  "_注意": [
+    "SBI証券には個人向けのFX取引APIが無いため、このアダプタは画面自動操作になる。",
+    "利用規約に抵触する可能性があり、口座凍結のリスクがある。使用は自己責任。",
+    "selectors は自分でブラウザの開発者ツールから調べて埋めること。",
+    "dry_run を false にする前に、必ず paper モードで十分に検証すること。"
+  ],
+
+  "symbol": "USD/JPY",
+  "strategy": "breakout",
+  "instrument_overrides": {
+    "min_units": 10000,
+    "units_step": 10000
+  },
+
+  "broker": "sbi_web",
+  "broker_params": {
+    "login_url": "https://www.sbisec.co.jp/ETGate",
+    "dry_run": true,
+    "confirm_live_trading": false,
+    "headless": false,
+    "timeout_ms": 30000,
+    "username_env": "SBI_USERNAME",
+    "password_env": "SBI_PASSWORD",
+    "trade_password_env": "SBI_TRADE_PASSWORD",
+    "screenshot_dir": "./journal/screenshots",
+    "selectors": {
+      "username_input": "",
+      "password_input": "",
+      "login_button": "",
+      "fx_menu_link": "",
+      "symbol_selector": "",
+      "units_input": "",
+      "buy_button": "",
+      "sell_button": "",
+      "confirm_button": "",
+      "bid_price": "",
+      "ask_price": "",
+      "equity_value": "",
+      "position_rows": ""
+    }
+  },
+
+  "risk": {
+    "risk_per_trade": 0.005,
+    "max_positions": 1,
+    "max_leverage": 3.0,
+    "daily_loss_limit": 0.02,
+    "max_drawdown": 0.10,
+    "max_consecutive_losses": 3
+  },
+  "engine": { "bar_minutes": 60, "poll_seconds": 20 },
+  "journal_dir": "./journal"
+}

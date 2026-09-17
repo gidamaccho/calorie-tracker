@@ -1,0 +1,40 @@
+{
+  "symbol": "USD/JPY",
+  "strategy": "breakout",
+  "strategy_params": {
+    "entry_period": 20,
+    "exit_period": 10,
+    "atr_period": 14,
+    "atr_stop_mult": 2.0
+  },
+  "broker": "paper",
+  "starting_balance": 1000000,
+  "spread_pips": 0.4,
+  "slippage_pips": 0.2,
+  "commission_per_10k": 0,
+  "risk": {
+    "risk_per_trade": 0.01,
+    "max_positions": 1,
+    "max_leverage": 5.0,
+    "daily_loss_limit": 0.03,
+    "max_drawdown": 0.20,
+    "max_consecutive_losses": 5,
+    "min_stop_pips": 5.0,
+    "max_stop_pips": 150.0,
+    "default_stop_pips": 20.0,
+    "trailing_stop_pips": 0,
+    "trailing_trigger_pips": 0,
+    "trading_hours": [0, 24],
+    "trade_on_weekend": false,
+    "max_spread_pips": 3.0
+  },
+  "engine": {
+    "bar_minutes": 60,
+    "poll_seconds": 10,
+    "max_consecutive_errors": 5,
+    "close_positions_on_stop": false
+  },
+  "journal_dir": "./journal",
+  "log_level": "INFO",
+  "log_file": "./journal/fxbot.log"
+}

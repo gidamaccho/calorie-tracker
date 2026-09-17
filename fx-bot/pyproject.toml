@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fxbot"
+version = "0.1.0"
+description = "FX自動売買フレームワーク (バックテスト / ペーパートレード / ライブ)"
+requires-python = ">=3.9"
+dependencies = []          # 本体は標準ライブラリのみで動く
+
+[project.optional-dependencies]
+yaml = ["pyyaml>=6.0"]          # YAML形式の設定ファイルを使う場合
+browser = ["playwright>=1.40"]  # SBI画面自動操作アダプタを使う場合
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+fxbot = "fxbot.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["fxbot*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

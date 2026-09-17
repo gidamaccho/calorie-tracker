@@ -1,0 +1,4 @@
+pytest>=7.0
+# 任意:
+# pyyaml>=6.0       # YAML設定を使う場合
+# playwright>=1.40  # SBI画面自動操作アダプタを使う場合

@@ -1,0 +1,27 @@
+{
+  "symbol": "USD/JPY",
+  "strategy": "breakout",
+  "strategy_params": { "entry_period": 20, "exit_period": 10 },
+
+  "broker": "oanda",
+  "broker_params": {
+    "environment": "practice",
+    "token_env": "OANDA_TOKEN",
+    "account_env": "OANDA_ACCOUNT_ID",
+    "confirm_live_trading": false
+  },
+
+  "risk": {
+    "risk_per_trade": 0.005,
+    "max_positions": 1,
+    "max_leverage": 3.0,
+    "daily_loss_limit": 0.02,
+    "max_drawdown": 0.10,
+    "max_consecutive_losses": 4,
+    "trading_hours": [0, 24],
+    "max_spread_pips": 2.0
+  },
+  "engine": { "bar_minutes": 60, "poll_seconds": 15 },
+  "journal_dir": "./journal",
+  "log_level": "INFO"
+}
