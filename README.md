@@ -2,40 +2,59 @@
 
 食事とカロリーを記録する React + TypeScript + Vite のアプリ。データは端末の localStorage に保存されます。
 
-## Jev による食事の自動分類
+## 写真から記録する
 
-追加した食事を [TypeSafe AI](https://typesafe.ai) の System One モデル **Jev** に判定させ、
-主食 / 主菜 / 副菜 / 汁物 / 間食 / 飲み物 / その他 の7区分に自動でタグ付けします。
-Jev は文章を生成せず、選択肢とその確率だけを返す判定特化モデルなので、この用途では LLM より高速・安価です。
+食事の写真を撮るだけで、料理名と推定カロリーがフォームに入り、区分のタグが付きます。
+2つのモデルを役割で分けています。
+
+```
+📷 写真 ──▶ Claude（claude-opus-5）──▶ 「鮭の塩焼き定食 / 620 kcal」──▶ Jev ──▶ 🍚 主食
+             画像を読む・量を見積もる          フォームに自動入力          区分を判定
+```
+
+**なぜ2段構えなのか**: [Jev](https://typesafe.ai) は文章を生成せず、選択肢とその確率だけを返す判定特化モデルで、
+`state` に取れるのは文字列・JSON・配列だけです。画像は受け取れないため、写真を読む工程は Claude が担当し、
+その結果を Jev が判定します。判定は Jev のほうが高速・安価です。
 
 ### 設定
 
 このアプリはバックエンドを持たない静的サイトなので、APIキーはビルド成果物に含めず、
 **利用者が自分のキーを入力する方式（BYOK）** にしています。
 
-1. TypeSafe AI で APIキーを取得する
-2. アプリ下部の「⚡ Jev 自動分類」→「設定」を開く
-3. キーを貼り付けて「保存」
+1. 画面下部の「⚡ AI 設定」を開く
+2. Claude のキー（写真の読み取り）と Jev のキー（自動分類）を入れて保存
 
-キーはその端末の `localStorage`（`jev-api-key`）にのみ保存され、判定時に `api.typesafe.ai` へ直接送られます。
+キーはその端末の `localStorage` にのみ保存され、それぞれ `api.anthropic.com` / `api.typesafe.ai` へ直接送られます。
 リポジトリにも `dist/` にもキーは含まれません。
 
 ### 挙動
 
-- キー未設定なら Jev は呼ばれず、アプリは従来どおり動きます
-- 判定に失敗しても食事の記録は必ず残り、画面上部に警告だけが出ます
-- 確信度が 50% 未満の判定は採用せず、未分類のままにします
-- タイムアウトは 10 秒
+- **キーは片方だけでも動きます**。Claude のキーがなければ写真ボタンは出ず、Jev のキーがなければタグが付かないだけです
+- 写真は送信前にブラウザ側で長辺1024pxのJPEGに縮小します（原寸のスマホ写真は遅く高くつくため）
+- 読み取り結果はフォームに入るだけなので、追加前に手で直せます
+- 解析や判定に失敗しても記録は妨げられず、警告が出るだけです
+- 食べ物が写っていない写真は、誤った推定をせず手入力を促します
+- 確信度50%未満の区分判定は採用せず、未分類のままにします
+- Anthropic SDK は本体より大きいので動的 import で分離し、写真を使うときだけ読み込みます
 
 ### 実装
 
 | ファイル | 役割 |
 | --- | --- |
-| `src/lib/jev.ts` | `POST /v1/systemone` を叩く最小クライアント（型付き answers のパースとエラー分類） |
+| `src/lib/vision.ts` | Claude で写真から料理名・カロリーを抽出（structured outputs でスキーマを保証） |
+| `src/lib/image.ts` | 送信前の縮小・JPEG変換 |
+| `src/lib/jev.ts` | `POST /v1/systemone` を叩く最小クライアント |
 | `src/lib/mealCategory.ts` | 7区分の定義と `classifyMeal()` |
-| `src/hooks/useJevKey.ts` | APIキーの保持（BYOK） |
+| `src/hooks/useApiKey.ts` | APIキーの保持（BYOK） |
+| `src/hooks/useMealPhoto.ts` | 写真の縮小から読み取りまで |
 | `src/hooks/useMealClassifier.ts` | 追加された食事を非同期で判定 |
-| `src/components/JevSettings.tsx` | キー入力UI |
+| `src/components/AiSettings.tsx` | キー入力UI |
+
+### 調整するとしたら
+
+- `src/lib/vision.ts` の `output_config.effort` が精度と待ち時間のつまみです（現在 `medium`）
+- `src/lib/image.ts` の `MAX_EDGE` を上げると細部が読めますが、その分トークンが増えます
+- `src/lib/mealCategory.ts` の `MIN_CONFIDENCE` がタグを付ける確信度の下限です
 
 ## 開発
 

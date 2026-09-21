@@ -1,19 +1,20 @@
 import { useState } from 'react';
 import { useMeals } from './hooks/useMeals';
-import { useJevKey } from './hooks/useJevKey';
+import { useJevKey, useClaudeKey } from './hooks/useApiKey';
 import { useMealClassifier } from './hooks/useMealClassifier';
 import { CalorieSummary } from './components/CalorieSummary';
 import { MealForm } from './components/MealForm';
 import { MealList } from './components/MealList';
-import { JevSettings } from './components/JevSettings';
+import { AiSettings } from './components/AiSettings';
 
 const DEFAULT_GOAL = 2000;
 
 function App() {
   const { meals, addMeal, deleteMeal, setMealCategory, totalCalories } = useMeals();
-  const { apiKey, saveKey } = useJevKey();
+  const { apiKey: jevKey, saveKey: saveJevKey } = useJevKey();
+  const { apiKey: claudeKey, saveKey: saveClaudeKey } = useClaudeKey();
   const { classify, pendingIds, error: jevError, dismissError } = useMealClassifier(
-    apiKey,
+    jevKey,
     setMealCategory,
   );
 
@@ -85,7 +86,7 @@ function App() {
 
       <main className="max-w-md mx-auto px-4 py-6 flex flex-col gap-4 safe-x safe-bottom">
         <CalorieSummary total={totalCalories} goal={goal} />
-        <MealForm onAdd={handleAddMeal} />
+        <MealForm onAdd={handleAddMeal} claudeApiKey={claudeKey} />
         {jevError && (
           <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl px-4 py-3 text-sm">
             <span>{jevError}</span>
@@ -99,7 +100,24 @@ function App() {
           </div>
         )}
         <MealList meals={meals} onDelete={deleteMeal} classifyingIds={pendingIds} />
-        <JevSettings apiKey={apiKey} onSave={saveKey} />
+        <AiSettings
+          fields={[
+            {
+              label: '📷 Claude（写真の読み取り）',
+              placeholder: 'Claude の APIキー',
+              description: '食事の写真から料理名と推定カロリーを読み取り、フォームに自動入力します。',
+              apiKey: claudeKey,
+              onSave: saveClaudeKey,
+            },
+            {
+              label: '🏷️ Jev（食事の自動分類）',
+              placeholder: 'Jev の APIキー',
+              description: '追加した食事を主食・主菜・副菜などの7区分に自動でタグ付けします。',
+              apiKey: jevKey,
+              onSave: saveJevKey,
+            },
+          ]}
+        />
       </main>
     </div>
   );
