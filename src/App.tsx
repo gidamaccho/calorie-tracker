@@ -1,13 +1,25 @@
 import { useState } from 'react';
 import { useMeals } from './hooks/useMeals';
+import { useJevKey } from './hooks/useJevKey';
+import { useMealClassifier } from './hooks/useMealClassifier';
 import { CalorieSummary } from './components/CalorieSummary';
 import { MealForm } from './components/MealForm';
 import { MealList } from './components/MealList';
+import { JevSettings } from './components/JevSettings';
 
 const DEFAULT_GOAL = 2000;
 
 function App() {
-  const { meals, addMeal, deleteMeal, totalCalories } = useMeals();
+  const { meals, addMeal, deleteMeal, setMealCategory, totalCalories } = useMeals();
+  const { apiKey, saveKey } = useJevKey();
+  const { classify, pendingIds, error: jevError, dismissError } = useMealClassifier(
+    apiKey,
+    setMealCategory,
+  );
+
+  const handleAddMeal = (name: string, calories: number) => {
+    classify(addMeal(name, calories));
+  };
   const [goal, setGoal] = useState(() => {
     const saved = localStorage.getItem('calorie-goal');
     return saved ? parseInt(saved, 10) : DEFAULT_GOAL;
@@ -73,8 +85,21 @@ function App() {
 
       <main className="max-w-md mx-auto px-4 py-6 flex flex-col gap-4 safe-x safe-bottom">
         <CalorieSummary total={totalCalories} goal={goal} />
-        <MealForm onAdd={addMeal} />
-        <MealList meals={meals} onDelete={deleteMeal} />
+        <MealForm onAdd={handleAddMeal} />
+        {jevError && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl px-4 py-3 text-sm">
+            <span>{jevError}</span>
+            <button
+              onClick={dismissError}
+              className="flex items-center justify-center w-8 h-8 rounded-full text-amber-400 active:bg-amber-100 transition-colors shrink-0"
+              aria-label="閉じる"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+        <MealList meals={meals} onDelete={deleteMeal} classifyingIds={pendingIds} />
+        <JevSettings apiKey={apiKey} onSave={saveKey} />
       </main>
     </div>
   );

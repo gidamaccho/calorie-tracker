@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Meal } from '../types';
+import type { MealCategory } from '../lib/mealCategory';
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 
@@ -19,11 +20,21 @@ export const useMeals = () => {
     localStorage.setItem(`meals-${getTodayKey()}`, JSON.stringify(meals));
   }, [meals]);
 
-  const addMeal = (name: string, calories: number) => {
-    setMeals(prev => [
-      ...prev,
-      { id: crypto.randomUUID(), name, calories, time: new Date().toISOString() },
-    ]);
+  const addMeal = (name: string, calories: number): Meal => {
+    const meal: Meal = {
+      id: crypto.randomUUID(),
+      name,
+      calories,
+      time: new Date().toISOString(),
+    };
+    setMeals(prev => [...prev, meal]);
+    return meal;
+  };
+
+  const setMealCategory = (id: string, category: MealCategory, confidence: number) => {
+    setMeals(prev =>
+      prev.map(m => (m.id === id ? { ...m, category, categoryConfidence: confidence } : m)),
+    );
   };
 
   const deleteMeal = (id: string) => {
@@ -32,5 +43,5 @@ export const useMeals = () => {
 
   const totalCalories = meals.reduce((sum, m) => sum + m.calories, 0);
 
-  return { meals, addMeal, deleteMeal, totalCalories };
+  return { meals, addMeal, deleteMeal, setMealCategory, totalCalories };
 };
