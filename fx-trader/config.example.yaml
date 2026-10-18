@@ -1,0 +1,39 @@
+# config.yaml にコピーして使ってください(config.yaml は git に入りません)
+symbol: USDJPY
+timeframe: H1          # M1, M5, M15, M30, H1, H4, D1 など
+
+strategy:
+  name: ma_cross       # ma_cross / rsi_reversal
+  params:
+    fast: 20
+    slow: 50
+    ma_type: ema
+  # RSI 逆張りにする場合:
+  # name: rsi_reversal
+  # params: {period: 14, lower: 30, upper: 70}
+
+risk:
+  risk_per_trade_pct: 1.0   # 1 回の損切りで失う資金の割合(%)
+  sl_atr_mult: 2.0          # 損切り幅 = ATR × 2
+  tp_atr_mult: 3.0          # 利確幅   = ATR × 3
+  atr_period: 14
+  max_daily_loss_pct: 3.0   # 1 日 3% 減ったらその日は新規停止
+  max_spread_pips: 3.0      # スプレッドが広い時は見送り
+
+backtest:
+  initial_balance: 1000000  # 口座通貨(円)
+  spread_pips: 0.3
+  contract_size: 100000     # 1 ロット = 10 万通貨
+  min_lot: 0.01
+  lot_step: 0.01
+  max_lot: 50
+  quote_to_account_rate: 1.0  # USDJPY × 円口座なら 1.0 / EURUSD × 円口座なら USDJPY のレート(例 150)
+
+live:
+  magic: 20261018
+  poll_seconds: 10
+  history_bars: 500
+  deviation_points: 20
+  dry_run: false
+  allow_live_account: false   # リアル口座は既定で拒否
+  # terminal_path: "C:\\Program Files\\MetaTrader 5\\terminal64.exe"

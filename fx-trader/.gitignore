@@ -1,0 +1,6 @@
+config.yaml
+*.csv
+logs/
+__pycache__/
+.pytest_cache/
+.venv/
